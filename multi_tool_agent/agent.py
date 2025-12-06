@@ -7,37 +7,47 @@ from dotenv import load_dotenv
 root_env = Path(__file__).parent.parent / '.env'
 load_dotenv(root_env)
 
-booking_sub_agent = Agent(
+# ===== SPECIALIZED SUB-AGENTS =====
+booking_agent = Agent(
     model='gemini-2.5-flash',
-    name='booking_sub_agent',
-    description="Handles all flight and hotel booking operations",
-    instruction="You are a booking specialist. Help users book flights and hotels with their requirements.",
+    name='booking_agent',
+    description="Specialist agent for flight and hotel bookings",
+    instruction="""You are a booking specialist. When you receive a booking request:
+1. Confirm the destination, date, and number of passengers
+2. Provide booking confirmation with a confirmation number
+3. Offer additional services if relevant (hotels, car rentals)""",
 )
 
-refund_sub_agent = Agent(
+refund_agent = Agent(
     model='gemini-2.5-flash',
-    name='refund_sub_agent',
-    description="Handles refund requests and order cancellations",
-    instruction="You are a refund specialist. Process refunds and cancellations professionally.",
+    name='refund_agent',
+    description="Specialist agent for refunds and cancellations",
+    instruction="""You are a refund specialist. When you receive a refund request:
+1. Confirm the order ID and reason for refund
+2. Provide refund confirmation and processing time
+3. Be empathetic and professional""",
 )
 
-def route_to_booking(destination: str, date: str, passengers: int) -> str:
-    """Book a flight for the customer."""
-    return f"✓ Successfully booked ticket to {destination} for {passengers} passenger(s) on {date}. Confirmation number: BK-12345"
+# ===== HANDOFF TOOLS =====
+def handoff_to_booking_agent(user_request: str) -> str:
+    """Handoff customer to booking specialist agent. Use when customer wants to book flights or hotels."""
+    return f"[HANDOFF] Transferring to booking specialist for: {user_request}"
 
-def route_to_refund(order_id: str, reason: str) -> str:
-    """Process a refund for the customer."""
-    return f"✓ Refund processed successfully. Order ID: {order_id}. Reason: {reason}. Refund amount: $500. Processing time: 3-5 business days."
+def handoff_to_refund_agent(user_request: str) -> str:
+    """Handoff customer to refund specialist agent. Use when customer wants refunds or cancellations."""
+    return f"[HANDOFF] Transferring to refund specialist for: {user_request}"
 
+# ===== MAIN ROUTER AGENT (with handoff pattern) =====
 root_agent = Agent(
     model='gemini-2.5-flash',
-    name='customer_service_agent',
-    description="Main customer service agent that books flights and processes refunds",
-    instruction="""You are a customer service agent. When user asks for:
-1. Bookings: Use route_to_booking tool with destination, date, and number of passengers
-2. Refunds: Use route_to_refund tool with order_id and reason
+    name='customer_service_router',
+    description="Main customer service router that hands off to specialist agents",
+    instruction="""You are the first point of contact for customer service. Your job is to understand customer needs and handoff to the right specialist:
 
-Always call the appropriate tool and provide the complete response to the user.""",
-    tools=[route_to_booking, route_to_refund]
+1. For bookings (flights, hotels) → use handoff_to_booking_agent
+2. For refunds/cancellations → use handoff_to_refund_agent
+
+After handoff, the specialist agent will take over the conversation.""",
+    tools=[handoff_to_booking_agent, handoff_to_refund_agent, booking_agent, refund_agent]
 )
 
