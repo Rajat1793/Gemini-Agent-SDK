@@ -2,52 +2,60 @@ from google.adk.agents import Agent
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import logging
 
 # Load .env from root directory
 root_env = Path(__file__).parent.parent / '.env'
 load_dotenv(root_env)
 
-# ===== SPECIALIZED SUB-AGENTS =====
-booking_agent = Agent(
-    model='gemini-2.5-flash',
-    name='booking_agent',
-    description="Specialist agent for flight and hotel bookings",
-    instruction="""You are a booking specialist. When you receive a booking request:
-1. Confirm the destination, date, and number of passengers
-2. Provide booking confirmation with a confirmation number
-3. Offer additional services if relevant (hotels, car rentals)""",
+# ===== SETUP LOGGING FOR TRACING =====
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - [%(name)s] - %(message)s',
+    datefmt='%H:%M:%S'
 )
+logger = logging.getLogger('AgentFlow')
 
-refund_agent = Agent(
-    model='gemini-2.5-flash',
-    name='refund_agent',
-    description="Specialist agent for refunds and cancellations",
-    instruction="""You are a refund specialist. When you receive a refund request:
-1. Confirm the order ID and reason for refund
-2. Provide refund confirmation and processing time
-3. Be empathetic and professional""",
-)
+# ===== BOOKING TOOL =====
+def book_flight(destination: str, date: str, passengers: int) -> str:
+    """Book a flight for customers."""
+    logger.info(f"🛫 Booking flight to {destination} for {passengers} passenger(s) on {date}")
+    return f"✓ Flight booked successfully!\n" \
+           f"   Destination: {destination}\n" \
+           f"   Date: {date}\n" \
+           f"   Passengers: {passengers}\n" \
+           f"   Confirmation: BK-{hash(destination) % 100000:05d}"
 
-# ===== HANDOFF TOOLS =====
-def handoff_to_booking_agent(user_request: str) -> str:
-    """Handoff customer to booking specialist agent. Use when customer wants to book flights or hotels."""
-    return f"[HANDOFF] Transferring to booking specialist for: {user_request}"
+# ===== REFUND TOOL =====
+def process_refund(order_id: str, reason: str) -> str:
+    """Process refund for customers."""
+    logger.info(f"💰 Processing refund for order {order_id}")
+    return f"✓ Refund processed successfully!\n" \
+           f"   Order ID: {order_id}\n" \
+           f"   Reason: {reason}\n" \
+           f"   Refund Amount: $500\n" \
+           f"   Processing Time: 3-5 business days"
 
-def handoff_to_refund_agent(user_request: str) -> str:
-    """Handoff customer to refund specialist agent. Use when customer wants refunds or cancellations."""
-    return f"[HANDOFF] Transferring to refund specialist for: {user_request}"
+# ===== CHECK STATUS TOOL =====
+def check_booking_status(confirmation_number: str) -> str:
+    """Check booking status."""
+    logger.info(f"📋 Checking status for {confirmation_number}")
+    return f"✓ Booking Status: Confirmed\n" \
+           f"   Confirmation: {confirmation_number}\n" \
+           f"   Status: Active\n" \
+           f"   Check-in: Available 24 hours before departure"
 
-# ===== MAIN ROUTER AGENT (with handoff pattern) =====
+# ===== MAIN AGENT =====
 root_agent = Agent(
     model='gemini-2.5-flash',
-    name='customer_service_router',
-    description="Main customer service router that hands off to specialist agents",
-    instruction="""You are the first point of contact for customer service. Your job is to understand customer needs and handoff to the right specialist:
+    name='customer_service_agent',
+    description="Customer service agent that handles bookings, refunds, and status checks",
+    instruction="""You are a helpful customer service agent with access to three tools:
 
-1. For bookings (flights, hotels) → use handoff_to_booking_agent
-2. For refunds/cancellations → use handoff_to_refund_agent
+1. book_flight - Book flights for customers (destination, date, passengers)
+2. process_refund - Process refunds (order_id, reason)
+3. check_booking_status - Check booking status (confirmation_number)
 
-After handoff, the specialist agent will take over the conversation.""",
-    tools=[handoff_to_booking_agent, handoff_to_refund_agent, booking_agent, refund_agent]
+Analyze customer requests and use the appropriate tool. Be friendly and professional.""",
+    tools=[book_flight, process_refund, check_booking_status]
 )
-
