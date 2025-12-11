@@ -1,0 +1,17 @@
+{
+  "conversation_id": "demo_123",
+  "created_at": "2025-12-11T12:26:55.153856",
+  "contexts": [
+    {
+      "timestamp": "2025-12-11T12:26:55.153861",
+      "user_name": "Alice",
+      "topic": "AI development"
+    },
+    {
+      "timestamp": "2025-12-11T12:26:55.154530",
+      "user_name": "Alice",
+      "topic": "Python coding"
+    }
+  ],
+  "updated_at": "2025-12-11T12:26:55.154533"
+}
